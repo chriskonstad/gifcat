@@ -7,7 +7,6 @@ use gif::{Frame, SetParameter};
 
 use ncurses::*;
 
-// TODO: Cite Robert's `imgcat`
 // TODO: Image scaling
 // TODO: Turn into crate(s) and release
 // TODO: Looping playback
@@ -42,6 +41,7 @@ fn frame_to_grayscale(frame: &Frame) -> Vec<u8> {
 }
 
 fn intensity_to_char(p: u8) -> u8 {
+    // stolen from https://github.com/rfotino/imgcat
     let map = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. ";
     let offset = (p as f32 / 255.0 * (map.len() - 1) as f32).round() as usize;
     map.chars().nth(offset).unwrap() as u8
@@ -55,6 +55,10 @@ fn main() {
 
     initscr();
     curs_set(CURSOR_VISIBILITY::CURSOR_INVISIBLE);
+
+    let mut screen_max_width = 0;
+    let mut screen_max_height = 0;
+    getmaxyx(stdscr(), &mut screen_max_height, &mut screen_max_width);
 
     while let Some(frame) = decoder.read_next_frame().unwrap() {
         let grayscale = frame_to_grayscale(frame);
