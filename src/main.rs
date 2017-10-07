@@ -56,7 +56,7 @@ fn calc_new_size(vh: usize, vw: usize, gh: usize, gw: usize) -> (usize, usize) {
 }
 
 fn main() {
-    let mut decoder = gif::Decoder::new(File::open("/Users/chris/Desktop/homer.gif").unwrap());
+    let mut decoder = gif::Decoder::new(File::open("/Users/chris/Desktop/giphy.gif").unwrap());
     decoder.set(gif::ColorOutput::RGBA);
 
     let mut decoder = decoder.read_info().unwrap();
