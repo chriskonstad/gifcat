@@ -138,7 +138,7 @@ fn main() {
         //println!("Frame Total: {}s, Render: {}s", startFrame.to(endFrame), startRender.to(endFrame));
         let delay = std::time::Duration::from_millis(frame.delay as u64 * 10);
         // TODO Should we delay?
-        //thread::sleep(delay);
+        thread::sleep(delay);
     }
     endwin();
 }
