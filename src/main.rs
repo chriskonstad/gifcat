@@ -5,6 +5,7 @@ extern crate time;
 
 use std::fs::File;
 use std::{str, thread};
+use std::sync::mpsc;
 use gif::{Frame, SetParameter};
 use time::PreciseTime;
 
@@ -106,10 +107,7 @@ mod ascii_generator {
 
 
 fn main() {
-    let mut decoder = gif::Decoder::new(File::open("/Users/chris/Desktop/homer.gif").unwrap());
-    decoder.set(gif::ColorOutput::RGBA);
-
-    let mut decoder = decoder.read_info().unwrap();
+    let file = "/Users/chris/Desktop/homer.gif";
 
     initscr();
     curs_set(CURSOR_VISIBILITY::CURSOR_INVISIBLE);
@@ -118,27 +116,50 @@ fn main() {
     let mut screen_max_height = 0;
     getmaxyx(stdscr(), &mut screen_max_height, &mut screen_max_width);
 
-    while let Some(frame) = decoder.read_next_frame().unwrap() {
-        let startFrame = PreciseTime::now();
+    let (tx, rx) = mpsc::channel();
 
-        let ascii_frame = ascii_generator::to_ascii(&frame,
-                                                    screen_max_width as usize,
-                                                    screen_max_height as usize);
-        let chunks = ascii_frame.buffer.chunks(ascii_frame.width as usize);
+    thread::spawn(move || {
+        let mut decoder = gif::Decoder::new(File::open(file).unwrap());
+        decoder.set(gif::ColorOutput::RGBA);
 
-        let startRender = PreciseTime::now();
-        clear();
-        for c in chunks.into_iter() {
-            assert!(c.len() == ascii_frame.width as usize);
-            printw(format!("{}\n", str::from_utf8(c).unwrap()).as_str());
+        let mut decoder = decoder.read_info().unwrap();
+
+
+        while let Some(frame) = decoder.read_next_frame().unwrap() {
+            let startFrame = PreciseTime::now();
+
+            let ascii_frame = ascii_generator::to_ascii(&frame,
+                                                        screen_max_width as usize,
+                                                        screen_max_height as usize);
+            //let chunks = ascii_frame.buffer.chunks(ascii_frame.width as usize);
+            tx.send(ascii_frame).unwrap();
+
+            //let startRender = PreciseTime::now();
+            //clear();
+            //for c in chunks.into_iter() {
+            //    assert!(c.len() == ascii_frame.width as usize);
+            //    printw(format!("{}\n", str::from_utf8(c).unwrap()).as_str());
+            //}
+            //refresh();
+
+            //let endFrame = PreciseTime::now();
+            ////println!("Frame Total: {}s, Render: {}s", startFrame.to(endFrame), startRender.to(endFrame));
+            //let delay = std::time::Duration::from_millis(frame.delay as u64 * 10);
+            //// TODO Should we delay?
+            //thread::sleep(delay);
         }
-        refresh();
 
-        let endFrame = PreciseTime::now();
-        //println!("Frame Total: {}s, Render: {}s", startFrame.to(endFrame), startRender.to(endFrame));
+    });
+
+    for frame in rx {
+        clear();
+            for c in frame.buffer.chunks(frame.width as usize).into_iter() {
+                printw(format!("{}\n", str::from_utf8(c).unwrap()).as_str());
+            }
+        refresh();
         let delay = std::time::Duration::from_millis(frame.delay as u64 * 10);
-        // TODO Should we delay?
         thread::sleep(delay);
     }
+
     endwin();
 }
