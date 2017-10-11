@@ -25,6 +25,33 @@ mod ascii_generator {
     use std::borrow::Cow;
     use time::PreciseTime;
 
+    pub struct Renderable {
+        pub delay: u64,
+        pub width: usize,
+        pub height: usize,
+        pub buffer: Vec<u8>,
+    }
+
+    impl Renderable {
+        pub fn new(delay: u64, width: usize, height: usize, buffer: Vec<u8>) -> Renderable {
+            Renderable {
+                delay: delay,
+                width: width,
+                height: height,
+                buffer: buffer.to_vec(),
+            }
+        }
+
+        pub fn from_frame(frame: &Frame) -> Renderable {
+            Renderable::new(
+                frame.delay as u64,
+                frame.width as usize,
+                frame.height as usize,
+                frame.buffer.to_vec(),
+                )
+        }
+    }
+
     fn rgba_to_gray(r: u8, g: u8, b: u8, _: u8) -> u8 {
         let max = 255.0;
         let r = r as f32 / max;
@@ -62,11 +89,10 @@ mod ascii_generator {
         let scale = (vw as f64 / gw as f64).min(vh as f64 / gh as f64);
         let width = (gw as f64 * scale * 10.0/8.0).round() as usize;
         let height = (gh as f64 * scale * 10.0/10.0 ).round() as usize;
-        //println!("Scale: {}, w: {}, h: {}", scale, width, height);
         (width, height)
     }
 
-    pub fn to_ascii<'a>(frame: &'a Frame, screen_max_width: usize, screen_max_height: usize) -> Frame<'a> {
+    pub fn to_ascii(frame: &Renderable, screen_max_width: usize, screen_max_height: usize) -> Renderable {
         let (width, height) = calc_new_size(screen_max_height,
                                             screen_max_width,
                                             frame.height as usize,
@@ -78,7 +104,6 @@ mod ascii_generator {
                                       width,
                                       height,
                                       resize::Pixel::RGBA,
-                                      //resize::Type::Lanczos3);
                                       resize::Type::Triangle);
         resizer.resize(&frame.buffer, &mut scaled);
         let endResize = PreciseTime::now();
@@ -86,24 +111,16 @@ mod ascii_generator {
         let grayscale = frame_to_grayscale(&scaled, width, height);
         let endGray = PreciseTime::now();
         let startAscii = PreciseTime::now();
-        let ascii: Vec<u8> = grayscale.into_iter().map(|x| intensity_to_char(x)).collect();
-        let endAscii = PreciseTime::now();
-        let startClone = PreciseTime::now();
-        let mut ret = frame.clone();
-        ret.buffer = Cow::Owned(ascii);
-        let endClone = PreciseTime::now();
-        ret.width = width as u16;
-        ret.height = height as u16;
-        //println!("Resize: {}, Gray: {}, Ascii: {}, Clone: {}",
-                 //startResize.to(endResize),
-                 //startGray.to(endGray),
-                 //startAscii.to(endAscii),
-                 //startClone.to(endClone),
-                 //);
-        ret
+        Renderable::new(
+            frame.delay,
+            width,
+            height,
+            grayscale.into_iter().map(|x| intensity_to_char(x)).collect(),
+            )
     }
 }
 
+use ascii_generator::{Renderable, to_ascii};
 
 
 fn main() {
@@ -124,38 +141,20 @@ fn main() {
 
         let mut decoder = decoder.read_info().unwrap();
 
-
         while let Some(frame) = decoder.read_next_frame().unwrap() {
-            let startFrame = PreciseTime::now();
-
-            let ascii_frame = ascii_generator::to_ascii(&frame,
-                                                        screen_max_width as usize,
-                                                        screen_max_height as usize);
-            //let chunks = ascii_frame.buffer.chunks(ascii_frame.width as usize);
+            let ascii_frame = to_ascii(&Renderable::from_frame(frame),
+                                       screen_max_width as usize,
+                                       screen_max_height as usize);
             tx.send(ascii_frame).unwrap();
-
-            //let startRender = PreciseTime::now();
-            //clear();
-            //for c in chunks.into_iter() {
-            //    assert!(c.len() == ascii_frame.width as usize);
-            //    printw(format!("{}\n", str::from_utf8(c).unwrap()).as_str());
-            //}
-            //refresh();
-
-            //let endFrame = PreciseTime::now();
-            ////println!("Frame Total: {}s, Render: {}s", startFrame.to(endFrame), startRender.to(endFrame));
-            //let delay = std::time::Duration::from_millis(frame.delay as u64 * 10);
-            //// TODO Should we delay?
-            //thread::sleep(delay);
         }
-
-    });
+    }
+    );
 
     for frame in rx {
         clear();
-            for c in frame.buffer.chunks(frame.width as usize).into_iter() {
-                printw(format!("{}\n", str::from_utf8(c).unwrap()).as_str());
-            }
+        for c in frame.buffer.chunks(frame.width as usize).into_iter() {
+            printw(format!("{}\n", str::from_utf8(c).unwrap()).as_str());
+        }
         refresh();
         let delay = std::time::Duration::from_millis(frame.delay as u64 * 10);
         thread::sleep(delay);
