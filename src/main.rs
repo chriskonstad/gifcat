@@ -1,13 +1,11 @@
 extern crate gif;
 extern crate ncurses;
 extern crate resize;
-extern crate time;
 
 use std::fs::File;
 use std::{str, thread};
 use std::sync::mpsc;
-use gif::{Frame, SetParameter};
-use time::PreciseTime;
+use gif::SetParameter;
 
 use ncurses::*;
 
@@ -20,10 +18,7 @@ use ncurses::*;
 
 mod ascii_generator {
     extern crate resize;
-    extern crate time;
-    use gif::{Frame, SetParameter};
-    use std::borrow::Cow;
-    use time::PreciseTime;
+    use gif::Frame;
 
     pub struct Renderable {
         pub delay: u64,
@@ -66,7 +61,6 @@ mod ascii_generator {
     fn frame_to_grayscale(buffer: &Vec<u8>, width: usize, height: usize) -> Vec<u8> {
         let mut grayscale: Vec<u8> = Vec::with_capacity(width * height);
         for (i, _) in buffer.iter().enumerate() {
-            let index = i / 4;
             if 0 == i % 4 {
                 grayscale.push(rgba_to_gray(buffer[i + 0],
                                             buffer[i + 1],
@@ -98,7 +92,6 @@ mod ascii_generator {
                                             frame.height as usize,
                                             frame.width as usize);
         let mut scaled = vec![0u8;width*height*4];
-        let startResize = PreciseTime::now();
         let mut resizer = resize::new(frame.width as usize,
                                       frame.height as usize,
                                       width,
@@ -106,11 +99,7 @@ mod ascii_generator {
                                       resize::Pixel::RGBA,
                                       resize::Type::Triangle);
         resizer.resize(&frame.buffer, &mut scaled);
-        let endResize = PreciseTime::now();
-        let startGray = PreciseTime::now();
         let grayscale = frame_to_grayscale(&scaled, width, height);
-        let endGray = PreciseTime::now();
-        let startAscii = PreciseTime::now();
         Renderable::new(
             frame.delay,
             width,
@@ -124,7 +113,7 @@ use ascii_generator::{Renderable, to_ascii};
 
 
 fn main() {
-    let file = "/Users/chris/Desktop/homer.gif";
+    let file = "/Users/chris/Desktop/cam.gif";
 
     initscr();
     curs_set(CURSOR_VISIBILITY::CURSOR_INVISIBLE);
