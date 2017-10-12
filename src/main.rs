@@ -1,20 +1,24 @@
+#[macro_use]
+extern crate clap;
 extern crate gif;
 extern crate ncurses;
 extern crate resize;
 
-use std::fs::File;
-use std::{str, thread};
-use std::sync::mpsc;
+use clap::{Arg, App};
 use gif::SetParameter;
+use std::fs::File;
+use std::sync::mpsc;
+use std::{str, thread};
 
 use ncurses::*;
 
-// TODO: Multithread?
+// TODO: Rust rustfmt
+// TODO: Run clippy
 // TODO: Remove extraneous copying
-// TODO: Turn into crate(s) and release
 // TODO: Looping playback
 // TODO: Contrast adjustment?
 // TODO: Map chunks into one string
+// TODO: Turn into crate(s) and release
 
 mod ascii_generator {
     extern crate resize;
@@ -113,7 +117,16 @@ use ascii_generator::{Renderable, to_ascii};
 
 
 fn main() {
-    let file = "/Users/chris/Desktop/cam.gif";
+    let matches = App::new(crate_name!())
+                           .version(crate_version!())
+                           .about(crate_description!())
+                           .author(crate_authors!("\n"))
+                           .arg(Arg::with_name("GIF")
+                                .help("Sets input GIF to display")
+                                .required(true)
+                                .index(1))
+                           .get_matches();
+    let file = matches.value_of("GIF").unwrap().to_string();
 
     initscr();
     curs_set(CURSOR_VISIBILITY::CURSOR_INVISIBLE);
